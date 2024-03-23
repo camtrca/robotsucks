@@ -1,62 +1,36 @@
-#!/usr/bin/env python  
+#!/usr/bin/env python
 
 import rclpy
 from rclpy.node import Node
-
+from rclpy.time import Time
+import tf2_ros
 import geometry_msgs.msg
 
-class CmdVel(Node):
+class RobotPositionNode(Node):
     def __init__(self):
-        super().__init__('testpkgfromW3')
-        
-        # Define Parameters
-        self.declare_parameters(
-            namespace='',
-            parameters=[
-                ('driveSpeed', 1.0),
-                ('rotateSpeed', 0.5)
-            ]
-        )
-        
-        # Look-up parameters values
-        self.driveSpeed = self.get_parameter('driveSpeed').value
-        self.rotateSpeed = self.get_parameter('rotateSpeed').value
-        
-        # Command Velocity Publisher
-        self.topic = "/cmd_vel"
-        self.pub = self.create_publisher(geometry_msgs.msg.Twist, self.topic, 10)
-        
-        # Setup timer callback
-        self.timer = self.create_timer(2.0, self.transform)
-    
-    def transform(self):
-        time = self.get_clock().now() - rclpy.duration.Duration(seconds=0.1)
-        
-        self.get_logger().info("--------------------------------")
-        self.get_logger().info("Time:" + str(time))
+        super().__init__('robot_position_node')
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.timer = self.create_timer(5.0, self.timer_callback)  # Call timer_callback every 5 seconds
 
-        # Setup Twist message
-        cmd_vel = geometry_msgs.msg.Twist()
-        cmd_vel.linear.x = self.driveSpeed
-        cmd_vel.angular.z = self.rotateSpeed
-        
-        # Publish
-        self.get_logger().info(f"Sending command: {cmd_vel}")
-        self.pub.publish(cmd_vel)
-
-        # Update velocities
-        self.driveSpeed = -1 * self.driveSpeed
-
-def main():
-    rclpy.init()
-    node = CmdVel()
-    
+    def timer_callback(self):
+        try:
+            transform = self.tf_buffer.lookup_transform('map', 'base_link', Time())
+            position = transform.transform.translation
+            print(f"Robot's Position in Map Coordinates: {position.x}, {position.y}, {position.z}")
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+            self.get_logger().error(f'Error in transforming robot position: {str(e)}')
+def main(args=None):
+    rclpy.init(args=args)
+    node = RobotPositionNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        pass
+        node.get_logger().info('Keyboard interruption detected, shutting down...')
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
-    rclpy.shutdown()
-    exit(0)
-
+if __name__ == '__main__':
+    main()
 
