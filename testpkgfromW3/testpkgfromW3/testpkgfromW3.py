@@ -20,17 +20,14 @@ class RobotPositionNode(Node):
             print(f"Robot's Position in Map Coordinates: {position.x}, {position.y}, {position.z}")
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
             self.get_logger().error(f'Error in transforming robot position: {str(e)}')
-def main(args=None):
-    rclpy.init(args=args)
+def main():
+    rclpy.init()
     node = RobotPositionNode()
+    
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        node.get_logger().info('Keyboard interruption detected, shutting down...')
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        pass
 
-if __name__ == '__main__':
-    main()
-
+    rclpy.shutdown()
+    exit(0)
